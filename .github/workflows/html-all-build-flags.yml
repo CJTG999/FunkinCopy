@@ -1,0 +1,56 @@
+name: V-Slice 0.8.3 Full Feature Build
+on: workflow_dispatch
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Source
+        uses: actions/checkout@v3
+
+      - name: Setup Haxe
+        uses: krdlab/setup-haxe@v1
+        with:
+          haxe-version: 4.2.5
+
+      - name: Install Dependencies
+        run: |
+          haxelib setup ~/haxelib
+          # Core Framework
+          haxelib install lime 8.0.1
+          haxelib install openfl 9.2.2
+          haxelib install flixel 5.5.0
+          haxelib install flixel-addons 3.2.1
+          haxelib install flixel-ui 2.5.0
+          
+          # Feature-Specific Libraries
+          haxelib install polymod 1.7.0
+          haxelib install hxvlc 1.9.2
+          haxelib install funkin.vis 1.1.0
+          haxelib install json2object 3.1.1
+          haxelib install thx.core 0.44.0
+          haxelib install thx.semver 0.2.2
+          haxelib install hscript 2.5.0
+          haxelib install flxanimate 4.0.0
+          
+          haxelib run lime setup
+          haxelib run lime setup flixel
+
+      - name: Compile HTML5 (Full Features)
+        run: |
+          haxelib run lime build html5 \
+          -DGITHUB_BUILD \
+          -DFEATURE_POLYMOD_MODS \
+          -DREDIRECT_ASSETS_FOLDER \
+          -DFEATURE_DISCORD_RPC \
+          -DFEATURE_VIDEO_PLAYBACK \
+          -DFEATURE_SCREENSHOTS \
+          -DFEATURE_CHART_EDITOR \
+          -DFEATURE_STAGE_EDITOR \
+          -DFEATURE_GHOST_TAPPING
+
+      - name: Upload Build
+        uses: actions/upload-artifact@v3
+        with:
+          name: FNF-VSlice-Full-Features
+          path: export/release/html5/bin
