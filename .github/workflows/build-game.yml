@@ -1,6 +1,3 @@
-# This is the FULL original V-Slice 0.8.3 build-game.yml 
-# Modified ONLY to include HTML5 target and your custom build flags.
-
 name: Build and Upload nightly game builds
 
 on:
@@ -17,49 +14,8 @@ on:
   push:
 
 jobs:
-  gather-changes:
+  build-game:
     runs-on: ubuntu-latest
-    outputs:
-      trigger-build: ${{ steps.should-trigger.outputs.result }}
-    steps:
-      - name: Checkout repo
-        uses: actions/checkout@v4
-      - uses: dorny/paths-filter@v3
-        id: filter
-        with:
-          base: ${{ github.ref }}
-          filters: |
-            docker:
-              - '.github/workflows/build-game.yml'
-              - '**/Dockerfile'
-      - uses: actions/github-script@v7
-        id: should-trigger
-        with:
-          result-encoding: string
-          script: |
-            return "true"
-
-  gather-tags:
-    runs-on: ubuntu-latest
-    outputs:
-      primary: ${{ steps.build-tags.outputs.primary }}
-    steps:
-      - id: build-tags
-        run: echo "primary=latest" >> $GITHUB_OUTPUT
-
-  # THE MAIN BUILD JOB (ORIGINAL STRUCTURE)
-  build-game-in-container:
-    needs: [gather-changes, gather-tags]
-    runs-on: ubuntu-latest
-    container: ghcr.io/funkincrew/build-dependencies:${{ needs.gather-tags.outputs.primary }}
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - target: html5 # We only need HTML5 for Chromebook
-    defaults:
-      run:
-        shell: bash
     env:
       BUILD_DEFINES: ${{ github.event.inputs.build-defines || '-DGITHUB_BUILD -DFEATURE_POLYMOD_MODS -DREDIRECT_ASSETS_FOLDER -DFEATURE_DISCORD_RPC -DFEATURE_VIDEO_PLAYBACK -DFEATURE_SCREENSHOTS -DFEATURE_CHART_EDITOR -DFEATURE_STAGE_EDITOR -DFEATURE_GHOST_TAPPING' }}
     steps:
@@ -68,38 +24,37 @@ jobs:
         with:
           submodules: 'recursive'
 
-      - name: Config haxelib
-        run: |
-          haxelib --never newrepo
-          echo "HAXEPATH=$(haxelib config)" >> "$GITHUB_ENV"
-
-      - name: Restore cached dependencies
-        id: cache-hmm
-        uses: actions/cache@v4
+      - name: Setup Haxe
+        uses: krdlab/setup-haxe@v1
         with:
-          path: .haxelib
-          key: haxe-hmm-${{ runner.os }}-${{ hashFiles('**/hmm.json') }}
+          haxe-version: 4.2.5
 
-      - name: Install dependencies
-        if: steps.cache-hmm.outputs.cache-hit != 'true'
+      - name: Install Libraries
         run: |
-          haxelib --global run hmm install -q
+          haxelib setup ~/haxelib
+          haxelib install lime 8.0.1
+          haxelib install openfl 9.2.2
+          haxelib install flixel 5.5.0
+          haxelib install flixel-addons 3.2.1
+          haxelib install flixel-ui 2.5.0
+          haxelib install flxanimate 4.0.0
+          haxelib install hxvlc 1.9.2
+          haxelib install funkin.vis 1.1.0
+          haxelib install json2object 3.1.1
+          haxelib install thx.core 0.44.0
+          haxelib install thx.semver 0.2.2
+          haxelib install hscript 2.5.0
+          haxelib run lime setup flixel
+          haxelib run lime setup
 
-      - name: Populate .env
+      - name: Build game (HTML5)
         run: |
-          touch .env
-          echo API_NG_APP_ID=${{ secrets.API_NG_APP_ID }} >> .env
-          echo API_NG_ENC_KEY=${{ secrets.API_NG_ENC_KEY }} >> .env
-
-      - name: Build game
-        run: |
-          # Original V-Slice build command with your custom flags
-          haxelib run lime build ${{ matrix.target }} -v -release --times $BUILD_DEFINES
+          haxelib run lime build html5 -v -release $BUILD_DEFINES
         timeout-minutes: 120
 
-      - name: Save build artifact to Github Actions
+      - name: Save build artifact
         if: ${{ github.event.inputs.save-artifact || true }}
         uses: actions/upload-artifact@v4
         with:
-          name: build-${{ matrix.target }}
-          path: export/release/${{ matrix.target }}/bin/
+          name: FNF-VSlice-Build-HTML5
+          path: export/release/html5/bin/
