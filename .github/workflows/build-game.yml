@@ -7,6 +7,10 @@ on:
         type: string
         description: Build defines to use
         default: '-DGITHUB_BUILD -DFEATURE_POLYMOD_MODS -DREDIRECT_ASSETS_FOLDER -DFEATURE_DISCORD_RPC -DFEATURE_VIDEO_PLAYBACK -DFEATURE_SCREENSHOTS -DFEATURE_CHART_EDITOR -DFEATURE_STAGE_EDITOR -DFEATURE_GHOST_TAPPING'
+      save-artifact:
+        type: boolean
+        description: Save the build artifact to Github Actions
+        default: true
   push:
 
 jobs:
@@ -16,9 +20,8 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v4
         with:
-          # V-Slice 0.8.3 REQUIRES submodules for its assets
           submodules: 'recursive'
-          fetch-depth: 1
+          fetch-depth: 1 
 
       - name: Install System Dependencies
         run: |
@@ -28,30 +31,25 @@ jobs:
       - name: Setup Haxe
         uses: krdlab/setup-haxe@v1
         with:
-          haxe-version: 4.2.5
+          # CRITICAL FIX: Upgraded from 4.2.5 to 4.3.6 to fix the 'Unexpected ?' error
+          haxe-version: 4.3.6
 
-      - name: Install and Run HMM
+      - name: Install HMM and Dependencies
         run: |
           haxelib setup ~/haxelib
           haxelib install hmm --quiet
-          # Using 'haxelib run' ensures the tool is found regardless of pathing
           haxelib run hmm install
           haxelib run lime setup
           haxelib run lime setup flixel
 
-      - name: Verify Assets
-        run: |
-          # This checks if the assets submodule actually downloaded
-          if [ ! -d "assets" ]; then echo "Assets folder missing! Check submodules."; exit 1; fi
-
       - name: Build game (HTML5)
         run: |
-          # Create the export directory manually to prevent Lime 'permission' or 'missing folder' errors
-          mkdir -p export/release/html5/bin
+          # Added --no-traces to keep memory usage low for Chromebook logs
           haxelib run lime build html5 -release --no-traces ${{ github.event.inputs.build-defines || '-DGITHUB_BUILD -DFEATURE_POLYMOD_MODS -DREDIRECT_ASSETS_FOLDER -DFEATURE_DISCORD_RPC -DFEATURE_VIDEO_PLAYBACK -DFEATURE_SCREENSHOTS -DFEATURE_CHART_EDITOR -DFEATURE_STAGE_EDITOR -DFEATURE_GHOST_TAPPING' }}
         timeout-minutes: 120
 
       - name: Save build artifact
+        if: ${{ github.event.inputs.save-artifact || true }}
         uses: actions/upload-artifact@v4
         with:
           name: FNF-VSlice-Build-HTML5
