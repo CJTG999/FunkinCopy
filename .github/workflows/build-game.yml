@@ -20,9 +20,21 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v4
         with:
-          # V-Slice MUST have submodules or it fails to find the 'art' and 'assets'
           submodules: 'recursive'
-          fetch-depth: 0 
+          fetch-depth: 1 # Saves massive amounts of RAM/Disk
+
+      - name: Create Swap Space (Critical for V-Slice)
+        run: |
+          sudo fallocate -l 4G /swapfile
+          sudo chmod 600 /swapfile
+          sudo mkswap /swapfile
+          sudo swapon /swapfile
+
+      - name: Install System Dependencies (Video/Audio)
+        # Without these, hxvlc and lime will crash during the "Build Game" step
+        run: |
+          sudo apt-get update
+          sudo apt-get install libvlc-dev libvlccore-dev -y
 
       - name: Setup Haxe
         uses: krdlab/setup-haxe@v1
@@ -33,18 +45,19 @@ jobs:
         run: |
           haxelib setup ~/haxelib
           haxelib install hmm --quiet
+          # Use the full path to hmm to ensure it runs
           haxelib run hmm install
           haxelib run lime setup
           haxelib run lime setup flixel
 
       - name: Build game (HTML5)
         env:
-          # MEMORY FIX: Prevents the compiler from crashing on large FNF assets
+          # Tell Haxe to use more memory before it panics
           HAXE_FIXED_ADDRESS: 0x40000000 
         run: |
-          # Adding -debug can sometimes help see EXACTLY where it fails, 
-          # but we will stick to -release for your playable version.
-          haxelib run lime build html5 -v -release ${{ github.event.inputs.build-defines || '-DGITHUB_BUILD -DFEATURE_POLYMOD_MODS -DREDIRECT_ASSETS_FOLDER -DFEATURE_DISCORD_RPC -DFEATURE_VIDEO_PLAYBACK -DFEATURE_SCREENSHOTS -DFEATURE_CHART_EDITOR -DFEATURE_STAGE_EDITOR -DFEATURE_GHOST_TAPPING' }}
+          # Use 'lime build html5' directly. 
+          # We remove the '--times' to keep the log clean so it doesn't freeze the browser.
+          haxelib run lime build html5 -release ${{ github.event.inputs.build-defines || '-DGITHUB_BUILD -DFEATURE_POLYMOD_MODS -DREDIRECT_ASSETS_FOLDER -DFEATURE_DISCORD_RPC -DFEATURE_VIDEO_PLAYBACK -DFEATURE_SCREENSHOTS -DFEATURE_CHART_EDITOR -DFEATURE_STAGE_EDITOR -DFEATURE_GHOST_TAPPING' }}
         timeout-minutes: 120
 
       - name: Save build artifact
