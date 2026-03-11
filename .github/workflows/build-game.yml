@@ -21,17 +21,10 @@ jobs:
         uses: actions/checkout@v4
         with:
           submodules: 'recursive'
-          fetch-depth: 1 # Saves massive amounts of RAM/Disk
+          # Fetching only the latest commit to save disk space/RAM
+          fetch-depth: 1 
 
-      - name: Create Swap Space (Critical for V-Slice)
-        run: |
-          sudo fallocate -l 4G /swapfile
-          sudo chmod 600 /swapfile
-          sudo mkswap /swapfile
-          sudo swapon /swapfile
-
-      - name: Install System Dependencies (Video/Audio)
-        # Without these, hxvlc and lime will crash during the "Build Game" step
+      - name: Install System Dependencies
         run: |
           sudo apt-get update
           sudo apt-get install libvlc-dev libvlccore-dev -y
@@ -45,19 +38,14 @@ jobs:
         run: |
           haxelib setup ~/haxelib
           haxelib install hmm --quiet
-          # Use the full path to hmm to ensure it runs
           haxelib run hmm install
           haxelib run lime setup
           haxelib run lime setup flixel
 
       - name: Build game (HTML5)
-        env:
-          # Tell Haxe to use more memory before it panics
-          HAXE_FIXED_ADDRESS: 0x40000000 
         run: |
-          # Use 'lime build html5' directly. 
-          # We remove the '--times' to keep the log clean so it doesn't freeze the browser.
-          haxelib run lime build html5 -release ${{ github.event.inputs.build-defines || '-DGITHUB_BUILD -DFEATURE_POLYMOD_MODS -DREDIRECT_ASSETS_FOLDER -DFEATURE_DISCORD_RPC -DFEATURE_VIDEO_PLAYBACK -DFEATURE_SCREENSHOTS -DFEATURE_CHART_EDITOR -DFEATURE_STAGE_EDITOR -DFEATURE_GHOST_TAPPING' }}
+          # Added -Dnext and --no-traces to reduce memory usage during compilation
+          haxelib run lime build html5 -release --no-traces ${{ github.event.inputs.build-defines || '-DGITHUB_BUILD -DFEATURE_POLYMOD_MODS -DREDIRECT_ASSETS_FOLDER -DFEATURE_DISCORD_RPC -DFEATURE_VIDEO_PLAYBACK -DFEATURE_SCREENSHOTS -DFEATURE_CHART_EDITOR -DFEATURE_STAGE_EDITOR -DFEATURE_GHOST_TAPPING' }}
         timeout-minutes: 120
 
       - name: Save build artifact
