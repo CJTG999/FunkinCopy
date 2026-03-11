@@ -20,7 +20,9 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v4
         with:
+          # V-Slice MUST have submodules or it fails to find the 'art' and 'assets'
           submodules: 'recursive'
+          fetch-depth: 0 
 
       - name: Setup Haxe
         uses: krdlab/setup-haxe@v1
@@ -32,12 +34,16 @@ jobs:
           haxelib setup ~/haxelib
           haxelib install hmm --quiet
           haxelib run hmm install
-          # Manual setup for lime/openfl just in case hmm missed the alias
           haxelib run lime setup
           haxelib run lime setup flixel
 
       - name: Build game (HTML5)
+        env:
+          # MEMORY FIX: Prevents the compiler from crashing on large FNF assets
+          HAXE_FIXED_ADDRESS: 0x40000000 
         run: |
+          # Adding -debug can sometimes help see EXACTLY where it fails, 
+          # but we will stick to -release for your playable version.
           haxelib run lime build html5 -v -release ${{ github.event.inputs.build-defines || '-DGITHUB_BUILD -DFEATURE_POLYMOD_MODS -DREDIRECT_ASSETS_FOLDER -DFEATURE_DISCORD_RPC -DFEATURE_VIDEO_PLAYBACK -DFEATURE_SCREENSHOTS -DFEATURE_CHART_EDITOR -DFEATURE_STAGE_EDITOR -DFEATURE_GHOST_TAPPING' }}
         timeout-minutes: 120
 
