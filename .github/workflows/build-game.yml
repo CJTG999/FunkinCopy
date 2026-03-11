@@ -26,12 +26,11 @@ jobs:
       - name: Install System Dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install libvlc-dev libvlccore-dev -y
+          sudo apt-get install libvlc-dev libvlccore-dev libmbedtls-dev -y
 
       - name: Setup Haxe
         uses: krdlab/setup-haxe@v1
         with:
-          # CRITICAL FIX: Upgraded from 4.2.5 to 4.3.6 to fix the 'Unexpected ?' error
           haxe-version: 4.3.6
 
       - name: Install HMM and Dependencies
@@ -39,12 +38,13 @@ jobs:
           haxelib setup ~/haxelib
           haxelib install hmm --quiet
           haxelib run hmm install
+          # REBUILD LIME: This fixes the "Primitive not found" error
           haxelib run lime setup
           haxelib run lime setup flixel
 
       - name: Build game (HTML5)
         run: |
-          # Added --no-traces to keep memory usage low for Chromebook logs
+          # We call 'lime setup' one more time to ensure pathing is registered
           haxelib run lime build html5 -release --no-traces ${{ github.event.inputs.build-defines || '-DGITHUB_BUILD -DFEATURE_POLYMOD_MODS -DREDIRECT_ASSETS_FOLDER -DFEATURE_DISCORD_RPC -DFEATURE_VIDEO_PLAYBACK -DFEATURE_SCREENSHOTS -DFEATURE_CHART_EDITOR -DFEATURE_STAGE_EDITOR -DFEATURE_GHOST_TAPPING' }}
         timeout-minutes: 120
 
