@@ -16,8 +16,6 @@ on:
 jobs:
   build-game:
     runs-on: ubuntu-latest
-    env:
-      BUILD_DEFINES: ${{ github.event.inputs.build-defines || '-DGITHUB_BUILD -DFEATURE_POLYMOD_MODS -DREDIRECT_ASSETS_FOLDER -DFEATURE_DISCORD_RPC -DFEATURE_VIDEO_PLAYBACK -DFEATURE_SCREENSHOTS -DFEATURE_CHART_EDITOR -DFEATURE_STAGE_EDITOR -DFEATURE_GHOST_TAPPING' }}
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
@@ -29,27 +27,18 @@ jobs:
         with:
           haxe-version: 4.2.5
 
-      - name: Install Libraries
+      - name: Install HMM and Dependencies
         run: |
           haxelib setup ~/haxelib
-          haxelib install lime 8.0.1
-          haxelib install openfl 9.2.2
-          haxelib install flixel 5.5.0
-          haxelib install flixel-addons 3.2.1
-          haxelib install flixel-ui 2.5.0
-          haxelib install flxanimate 4.0.0
-          haxelib install hxvlc 1.9.2
-          haxelib install funkin.vis 1.1.0
-          haxelib install json2object 3.1.1
-          haxelib install thx.core 0.44.0
-          haxelib install thx.semver 0.2.2
-          haxelib install hscript 2.5.0
-          haxelib run lime setup flixel
+          haxelib install hmm --quiet
+          haxelib run hmm install
+          # Manual setup for lime/openfl just in case hmm missed the alias
           haxelib run lime setup
+          haxelib run lime setup flixel
 
       - name: Build game (HTML5)
         run: |
-          haxelib run lime build html5 -v -release $BUILD_DEFINES
+          haxelib run lime build html5 -v -release ${{ github.event.inputs.build-defines || '-DGITHUB_BUILD -DFEATURE_POLYMOD_MODS -DREDIRECT_ASSETS_FOLDER -DFEATURE_DISCORD_RPC -DFEATURE_VIDEO_PLAYBACK -DFEATURE_SCREENSHOTS -DFEATURE_CHART_EDITOR -DFEATURE_STAGE_EDITOR -DFEATURE_GHOST_TAPPING' }}
         timeout-minutes: 120
 
       - name: Save build artifact
